@@ -306,7 +306,6 @@ function createExplosion(x, y, color) {
 function init() {
     ship = new Ship(canvas.width / 2, canvas.height / 2);
     createAsteroids();
-    spawnEnemyTimer();
     gameLoop();
 }
 
@@ -324,6 +323,35 @@ function createAsteroids() {
         
         asteroids.push(new Asteroid(x, y, 3));
     }
+}
+
+// Restart game function
+function restartGame() {
+    console.log("Restarting game..."); // Debug message
+    
+    // Reset game state
+    game.score = 0;
+    game.lives = 3;
+    game.level = 1;
+    game.gameOver = false;
+    game.paused = false;
+    
+    // Clear all arrays
+    bullets = [];
+    particles = [];
+    enemies = [];
+    asteroids = [];
+    
+    // Create new ship
+    ship = new Ship(canvas.width / 2, canvas.height / 2);
+    
+    // Create new asteroids
+    createAsteroids();
+    
+    // Clear any held keys to prevent issues
+    Object.keys(keys).forEach(key => keys[key] = false);
+    
+    console.log("Game restarted!"); // Debug message
 }
 
 // Spawn enemies periodically
@@ -351,6 +379,12 @@ function shoot() {
 
 // Update game
 function update() {
+    // Handle restart - check this FIRST, even if game is over
+    if (keys['KeyR'] && game.gameOver) {
+        restartGame();
+        return; // Exit early after restart
+    }
+    
     if (game.gameOver || game.paused) return;
     
     // Handle shooting
@@ -459,16 +493,6 @@ function update() {
         game.score += 1000;
         createAsteroids();
     }
-    
-    // Handle restart
-    if (keys['KeyR'] && game.gameOver) {
-        game = { score: 0, lives: 3, level: 1, gameOver: false, paused: false };
-        bullets = [];
-        particles = [];
-        enemies = [];
-        ship = new Ship(canvas.width / 2, canvas.height / 2);
-        createAsteroids();
-    }
 }
 
 // Render game
@@ -486,7 +510,7 @@ function render() {
     }
     
     // Draw game objects
-    ship.draw();
+    if (ship) ship.draw();
     asteroids.forEach(asteroid => asteroid.draw());
     bullets.forEach(bullet => bullet.draw());
     enemies.forEach(enemy => enemy.draw());
@@ -506,6 +530,12 @@ function render() {
         ctx.font = '24px Courier New';
         ctx.fillText(`Final Score: ${game.score}`, canvas.width / 2, canvas.height / 2 + 40);
         ctx.fillText('Press R to Restart', canvas.width / 2, canvas.height / 2 + 80);
+        
+        // Add visual indicator that R key is being detected
+        if (keys['KeyR']) {
+            ctx.fillStyle = '#00FF00';
+            ctx.fillText('RESTARTING...', canvas.width / 2, canvas.height / 2 + 120);
+        }
     }
 }
 
