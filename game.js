@@ -3,7 +3,7 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 // Game State
-let game = {
+let gameState = {
     score: 0,
     lives: 3,
     level: 1,
@@ -302,17 +302,10 @@ function createExplosion(x, y, color) {
     }
 }
 
-// Initialize game
-function init() {
-    ship = new Ship(canvas.width / 2, canvas.height / 2);
-    createAsteroids();
-    gameLoop();
-}
-
 // Create asteroids
 function createAsteroids() {
     asteroids = [];
-    const numAsteroids = 4 + game.level;
+    const numAsteroids = 4 + gameState.level;
     
     for (let i = 0; i < numAsteroids; i++) {
         let x, y;
@@ -325,33 +318,28 @@ function createAsteroids() {
     }
 }
 
-// Restart game function
+// Initialize game
+function initGame() {
+    ship = new Ship(canvas.width / 2, canvas.height / 2);
+    createAsteroids();
+}
+
+// Restart game
 function restartGame() {
-    console.log("Restarting game..."); // Debug message
-    
     // Reset game state
-    game.score = 0;
-    game.lives = 3;
-    game.level = 1;
-    game.gameOver = false;
-    game.paused = false;
+    gameState.score = 0;
+    gameState.lives = 3;
+    gameState.level = 1;
+    gameState.gameOver = false;
+    gameState.paused = false;
     
-    // Clear all arrays
+    // Clear all game objects
     bullets = [];
     particles = [];
     enemies = [];
-    asteroids = [];
     
-    // Create new ship
-    ship = new Ship(canvas.width / 2, canvas.height / 2);
-    
-    // Create new asteroids
-    createAsteroids();
-    
-    // Clear any held keys to prevent issues
-    Object.keys(keys).forEach(key => keys[key] = false);
-    
-    console.log("Game restarted!"); // Debug message
+    // Reinitialize
+    initGame();
 }
 
 // Spawn enemies periodically
@@ -379,13 +367,13 @@ function shoot() {
 
 // Update game
 function update() {
-    // Handle restart - check this FIRST, even if game is over
-    if (keys['KeyR'] && game.gameOver) {
+    // ALWAYS check for restart first
+    if (keys['KeyR'] && gameState.gameOver) {
         restartGame();
-        return; // Exit early after restart
+        return;
     }
     
-    if (game.gameOver || game.paused) return;
+    if (gameState.gameOver || gameState.paused) return;
     
     // Handle shooting
     if (keys['Space']) shoot();
@@ -395,164 +383,4 @@ function update() {
     
     // Update bullets
     bullets = bullets.filter(bullet => {
-        bullet.update();
-        return bullet.life > 0;
-    });
-    
-    // Update asteroids
-    asteroids.forEach(asteroid => asteroid.update());
-    
-    // Update enemies
-    enemies.forEach(enemy => enemy.update());
-    
-    // Update particles
-    particles = particles.filter(particle => {
-        particle.update();
-        return particle.life > 0;
-    });
-    
-    // Spawn enemies
-    spawnEnemyTimer();
-    
-    // Check collisions
-    // Bullet vs Asteroid
-    for (let i = bullets.length - 1; i >= 0; i--) {
-        for (let j = asteroids.length - 1; j >= 0; j--) {
-            if (checkCollision(bullets[i], asteroids[j])) {
-                const asteroid = asteroids[j];
-                
-                // Create explosion
-                createExplosion(asteroid.x, asteroid.y, '#FF6B00');
-                
-                // Split asteroid
-                if (asteroid.size > 1) {
-                    for (let k = 0; k < 2; k++) {
-                        const newAsteroid = new Asteroid(asteroid.x, asteroid.y, asteroid.size - 1);
-                        newAsteroid.velocityX = (Math.random() - 0.5) * 4;
-                        newAsteroid.velocityY = (Math.random() - 0.5) * 4;
-                        asteroids.push(newAsteroid);
-                    }
-                }
-                
-                game.score += asteroid.size * 100;
-                asteroids.splice(j, 1);
-                bullets.splice(i, 1);
-                break;
-            }
-        }
-    }
-    
-    // Bullet vs Enemy
-    for (let i = bullets.length - 1; i >= 0; i--) {
-        for (let j = enemies.length - 1; j >= 0; j--) {
-            if (checkCollision(bullets[i], enemies[j])) {
-                createExplosion(enemies[j].x, enemies[j].y, '#FF0000');
-                game.score += 500;
-                enemies.splice(j, 1);
-                bullets.splice(i, 1);
-                break;
-            }
-        }
-    }
-    
-    // Ship vs Asteroid
-    asteroids.forEach(asteroid => {
-        if (checkCollision(ship, asteroid)) {
-            createExplosion(ship.x, ship.y, '#FFFFFF');
-            game.lives--;
-            ship.x = canvas.width / 2;
-            ship.y = canvas.height / 2;
-            ship.velocityX = 0;
-            ship.velocityY = 0;
-            
-            if (game.lives <= 0) {
-                game.gameOver = true;
-            }
-        }
-    });
-    
-    // Ship vs Enemy
-    enemies.forEach(enemy => {
-        if (checkCollision(ship, enemy)) {
-            createExplosion(ship.x, ship.y, '#FFFFFF');
-            game.lives--;
-            ship.x = canvas.width / 2;
-            ship.y = canvas.height / 2;
-            ship.velocityX = 0;
-            ship.velocityY = 0;
-            
-            if (game.lives <= 0) {
-                game.gameOver = true;
-            }
-        }
-    });
-    
-    // Check level completion
-    if (asteroids.length === 0) {
-        game.level++;
-        game.score += 1000;
-        createAsteroids();
-    }
-}
-
-// Render game
-function render() {
-    // Clear screen with starfield effect
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw stars
-    ctx.fillStyle = 'white';
-    for (let i = 0; i < 100; i++) {
-        const x = (i * 37) % canvas.width;
-        const y = (i * 53) % canvas.height;
-        ctx.fillRect(x, y, 1, 1);
-    }
-    
-    // Draw game objects
-    if (ship) ship.draw();
-    asteroids.forEach(asteroid => asteroid.draw());
-    bullets.forEach(bullet => bullet.draw());
-    enemies.forEach(enemy => enemy.draw());
-    particles.forEach(particle => particle.draw());
-    
-    // Game Over screen
-    if (game.gameOver) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        ctx.fillStyle = '#FF0000';
-        ctx.font = '48px Courier New';
-        ctx.textAlign = 'center';
-        ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2);
-        
-        ctx.fillStyle = 'white';
-        ctx.font = '24px Courier New';
-        ctx.fillText(`Final Score: ${game.score}`, canvas.width / 2, canvas.height / 2 + 40);
-        ctx.fillText('Press R to Restart', canvas.width / 2, canvas.height / 2 + 80);
-        
-        // Add visual indicator that R key is being detected
-        if (keys['KeyR']) {
-            ctx.fillStyle = '#00FF00';
-            ctx.fillText('RESTARTING...', canvas.width / 2, canvas.height / 2 + 120);
-        }
-    }
-}
-
-// Update UI
-function updateUI() {
-    document.getElementById('score').textContent = game.score;
-    document.getElementById('lives').textContent = game.lives;
-    document.getElementById('level').textContent = game.level;
-}
-
-// Game loop
-function gameLoop() {
-    update();
-    render();
-    updateUI();
-    requestAnimationFrame(gameLoop);
-}
-
-// Start game
-init();
+        b
